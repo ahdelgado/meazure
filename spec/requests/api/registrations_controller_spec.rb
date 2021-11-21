@@ -20,47 +20,97 @@ describe Api::RegistrationsController do
       }
     end
 
-    it 'creates a registration object and returns a 201 when params are valid and registratable' do
-      post api_registrations_path(params)
-      expect(response.successful?).to be_truthy
-      expect(response.status).to eql(201)
-      registration = Registration.first
-      registration_start_time = registration.start_datetime.strftime('%Y-%m-%d %H:%M:%S')
-      params_start_time = params[:start_time].utc.strftime('%Y-%m-%d %H:%M:%S')
-      expect(registration.user_id).to eql(user.id)
-      expect(registration.exam_id).to eql(exam.id)
-      expect(registration_start_time).to eql(params_start_time)
-      expect(json['user_id']).to eql(user.id)
-      expect(json['exam_id']).to eql(exam.id)
-      expect(json['start_datetime'].to_datetime.strftime('%Y-%m-%d %H:%M:%S')).to eql(params_start_time)
+    context 'when params are valid and registratable' do
+      it 'creates a registration object and returns a 201 ' do
+        expect(Registration.count).to eql(0)
+        expect { post api_registrations_path(params) }.to(change { Registration.count }.by(1))
+        expect(response.successful?).to be_truthy
+        expect(response.status).to eql(201)
+        registration = Registration.first
+        registration_start_time = registration.start_datetime.strftime('%Y-%m-%d %H:%M:%S')
+        params_start_time = params[:start_time].utc.strftime('%Y-%m-%d %H:%M:%S')
+        expect(registration.user_id).to eql(user.id)
+        expect(registration.exam_id).to eql(exam.id)
+        expect(registration_start_time).to eql(params_start_time)
+        expect(json['user_id']).to eql(user.id)
+        expect(json['exam_id']).to eql(exam.id)
+        expect(json['start_datetime'].to_datetime.strftime('%Y-%m-%d %H:%M:%S')).to eql(params_start_time)
+      end
+
+      it 'creates an API request object logging that request was successful' do
+        expect(ApiRequest.count).to eql(0)
+        expect { post api_registrations_path(params) }.to(change { ApiRequest.count }.by(1))
+        api_request = ApiRequest.first
+        expect(api_request.request_method).to eql('POST')
+        expect(api_request.controller_class).to eql('Api::RegistrationsController')
+        expect(api_request.path).to eql('/registrations')
+        expect(api_request.status).to eql('201')
+        expect(api_request.message).to eql('Created')
+      end
     end
 
-    it 'returns a 400 when params are invalid' do
-      params[:start_time] = 'Invalid datetime'
-      post api_registrations_path(params)
-      expect(response.status).to eql(400)
-      expect(json['message']).to eq('Bad Request')
+    context 'when params are invalid' do
+      before { params[:start_time] = 'Invalid datetime' }
+      it 'returns a 400' do
+        post api_registrations_path(params)
+        expect(response.status).to eql(400)
+        expect(json['message']).to eq('Date Error')
+      end
+
+      it 'creates an API request object logging that params are invalid' do
+        expect { post api_registrations_path(params) }.to(change { ApiRequest.count }.by(1))
+        api_request = ApiRequest.first
+        expect(api_request.status).to eql('400')
+        expect(api_request.message).to eql('Date Error')
+      end
     end
 
-    it "returns a 400 when date does not fall within exam's time window" do
-      params[:start_time] = DateTime.now - 1.year
-      post api_registrations_path(params)
-      expect(response.status).to eql(400)
-      expect(json['message']).to eq('Invalid Registration Date')
+    context "when date does not fall within exam's time window" do
+      before { params[:start_time] = DateTime.now - 1.year }
+      it 'returns a 400' do
+        post api_registrations_path(params)
+        expect(response.status).to eql(400)
+        expect(json['message']).to eq('Invalid Registration Date')
+      end
+
+      it 'creates an API request object logging that registration date is invalid' do
+        expect { post api_registrations_path(params) }.to(change { ApiRequest.count }.by(1))
+        api_request = ApiRequest.first
+        expect(api_request.status).to eql('400')
+        expect(api_request.message).to eql('Invalid Registration Date')
+      end
     end
 
-    it 'returns a 404 if the college is not found in the database' do
-      params[:college_id] = 999
-      post api_registrations_path(params)
-      expect(response.status).to eql(404)
-      expect(json['message']).to eq('Resource Not Found')
+    context 'when the college is not found in the database' do
+      before { params[:college_id] = 0 }
+      it 'returns a 404' do
+        post api_registrations_path(params)
+        expect(response.status).to eql(404)
+        expect(json['message']).to eq('Resource Not Found')
+      end
+
+      it 'creates an API request object logging that the resource was not found' do
+        expect { post api_registrations_path(params) }.to(change { ApiRequest.count }.by(1))
+        api_request = ApiRequest.first
+        expect(api_request.status).to eql('404')
+        expect(api_request.message).to eql('Resource Not Found')
+      end
     end
 
-    it 'returns a 404 if the exam is not found in the database' do
-      params[:exam_id] = 999
-      post api_registrations_path(params)
-      expect(response.status).to eql(404)
-      expect(json['message']).to eq('Resource Not Found')
+    context 'when the exam is not found in the database' do
+      before { params[:exam_id] = 0 }
+      it 'returns a 404 if the exam is not found in the database' do
+        post api_registrations_path(params)
+        expect(response.status).to eql(404)
+        expect(json['message']).to eq('Resource Not Found')
+      end
+
+      it 'creates an API request object logging that the resource was not found' do
+        expect { post api_registrations_path(params) }.to(change { ApiRequest.count }.by(1))
+        api_request = ApiRequest.first
+        expect(api_request.status).to eql('404')
+        expect(api_request.message).to eql('Resource Not Found')
+      end
     end
   end
 end

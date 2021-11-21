@@ -7,7 +7,11 @@ module Api
     def create
       raise InvalidRegistrationDate unless registratable?
 
-      registration = Registration.create!(user: user, exam: exam, start_datetime: start_datetime) if college
+      if college
+        registration = Registration.create!(user: user, exam: exam, start_datetime: start_datetime)
+        ApiRequest.create!(request_method: request.request_method, controller_class: request.controller_class,
+                           path: request.path, status: 201, message: 'Created')
+      end
       render json: registration, status: :created
     end
 
