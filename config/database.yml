@@ -1,0 +1,23 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  # For details on connection pooling, see rails configuration guide
+  # http://guides.rubyonrails.org/configuring.html#database-pooling
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5}.to_i * ENV.fetch("WEB_CONCURRENCY") { 2 }.to_i%>
+  host: <%= ENV['DB_HOST'] %>
+  port: <%= ENV['DB_PORT'] %>
+  username: <%= ENV['DB_USER'] %>
+  password: <%= ENV['DB_PASSWORD'] %>
+development:
+  <<: *default
+  database: <%= ENV['DB_NAME']  || "meazure_development" %>
+
+test:
+  <<: *default
+  database: "meazure_test_<%= ENV['TEST_ENV_NUMBER'] %>"
+
+production:
+  <<: *default
+  database: <%= ENV['DB_NAME'] %>
+  sslmode: verify-full
+  sslrootcert: <%= Rails.root.join('config', 'rds-ssl-ca-cert.pem') %>
